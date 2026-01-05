@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0a1a">
+    <title>SICOEM - Monitoreo de Equipos Médicos</title>
+    <meta name="description" content="Sistema de Control y Monitoreo de Equipos Médicos">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.svg">
+    <link rel="stylesheet" href="css/styles.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <!-- QR Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- PDF Generation Library -->
+    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <!-- Splash Screen -->
+        <div id="splash-screen" class="splash active">
+            <div class="splash-content">
+                <div class="pulse-ring"></div>
+                <div class="logo-icon">❤️</div>
+                <h1 class="logo-text">MONITOREO</h1>
+                <p class="logo-subtitle">EQUIPOS MÉDICOS</p>
+                <div class="loading-bar">
+                    <div class="loading-progress"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main App Container -->
+        <!-- Login Screen -->
+        <div id="login-screen" class="login-screen">
+            <div class="login-container">
+                <div class="login-logo">
+                    <div class="login-pulse-ring"></div>
+                    <span class="login-heart">❤️</span>
+                    <h1>MONITOREO</h1>
+                    <p>EQUIPOS MÉDICOS</p>
+                </div>
+
+                <form id="login-form" class="login-form glass">
+                    <h2>Iniciar Sesión</h2>
+
+                    <div class="login-input-group">
+                        <span class="login-icon">👤</span>
+                        <input type="text" id="login-username" placeholder="Usuario" required autocomplete="username">
+                    </div>
+
+                    <div class="login-input-group">
+                        <span class="login-icon">🔒</span>
+                        <input type="password" id="login-password" placeholder="Contraseña" required
+                            autocomplete="current-password">
+                    </div>
+
+                    <button type="submit" class="btn-primary glow login-btn">
+                        🚀 Ingresar
+                    </button>
+
+                    <p class="login-version">v2.0 - SICOEM</p>
+                </form>
+            </div>
+        </div>
+
+        <div id="main-app" class="main-app">
+
+            <!-- Sidebar Menu -->
+            <aside id="sidebar" class="sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-logo">
+                        <span class="heart-icon">❤️</span>
+                        <div>
+                            <h2>MONITOREO</h2>
+                            <p>EQUIPOS MÉDICOS</p>
+                        </div>
+                    </div>
+                </div>
+
+                <nav class="sidebar-nav">
+                    <button class="nav-btn active" data-action="scan">
+                        <span class="nav-icon">📷</span>
+                        <span class="nav-text">Cámara QR</span>
+                    </button>
+                    <button class="nav-btn" data-action="verify">
+                        <span class="nav-icon">✓</span>
+                        <span class="nav-text">Verf. de Equipo</span>
+                    </button>
+                    <button class="nav-btn" data-action="admin">
+                        <span class="nav-icon">👥</span>
+                        <span class="nav-text">Administrador</span>
+                    </button>
+                    <button class="nav-btn" data-action="location">
+                        <span class="nav-icon">📍</span>
+                        <span class="nav-text">Ubicación de Equipo</span>
+                    </button>
+                    <button class="nav-btn logout" data-action="logout">
+                        <span class="nav-icon">➡️</span>
+                        <span class="nav-text">Cerrar Sesión</span>
+                    </button>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <p>v2.0 - SICOEM</p>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main id="main-content" class="main-content">
+                <!-- Header -->
+                <header class="app-header">
+                    <button id="menu-toggle" class="menu-toggle">☰</button>
+                    <h1 id="page-title">Información de Equipos Médicos</h1>
+                    <div class="header-actions">
+                        <span id="current-time" class="current-time"></span>
+                    </div>
+                </header>
+
+                <!-- Scanner View -->
+                <section id="scanner-view" class="view active">
+                    <div class="scanner-container">
+                        <!-- Start scan button - shown when not scanning -->
+                        <div id="scan-start" class="scan-start-container">
+                            <div class="scan-start-icon">📷</div>
+                            <p class="scan-start-text">Presiona para escanear un código QR</p>
+                            <button id="start-scan-btn" class="btn-primary glow large">
+                                🔍 Iniciar Escaneo
+                            </button>
+
+                            <!-- Data loading status -->
+                            <div id="data-loading-status" class="data-loading-status">
+                                <div class="loading-spinner-small"></div>
+                                <span id="loading-status-text">Cargando base de datos...</span>
+                            </div>
+                        </div>
+
+                        <!-- Scanner frame - shown when scanning -->
+                        <div id="scanner-active" class="scanner-active-container" style="display: none;">
+                            <div class="scanner-frame">
+                                <div id="qr-reader" class="qr-reader"></div>
+                                <div class="scanner-corners">
+                                    <span class="corner tl"></span>
+                                    <span class="corner tr"></span>
+                                    <span class="corner bl"></span>
+                                    <span class="corner br"></span>
+                                </div>
+                            </div>
+                            <p class="scanner-hint">Escanea el código QR del equipo médico</p>
+                            <button id="stop-scan-btn" class="btn-secondary">
+                                ❌ Cancelar Escaneo
+                            </button>
+                        </div>
+
+                        <div id="scan-result" class="scan-result" style="display: none;">
+                            <div class="scan-success">
+                                <span class="success-icon">✓</span>
+                                <p>Código detectado</p>
+                                <code id="scanned-code"></code>
+                            </div>
+                            <button id="view-equipment-btn" class="btn-primary glow">
+                                Ver Información del Equipo
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Equipment Info View -->
+                <section id="equipment-view" class="view">
+                    <div class="equipment-info-container">
+                        <div class="info-card glass">
+                            <h3 class="section-title">Datos del Equipo</h3>
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <label>Establecimiento de salud:</label>
+                                    <span id="info-establecimiento" class="info-value">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <label>Ambiente:</label>
+                                    <span id="info-ambiente" class="info-value">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <label>Nombre de Equipo:</label>
+                                    <span id="info-nombre" class="info-value">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <label>Marca:</label>
+                                    <span id="info-marca" class="info-value">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <label>Modelo:</label>
+                                    <span id="info-modelo" class="info-value">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <label>Serie:</label>
+                                    <span id="info-serie" class="info-value">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <label>Código Patrimonial:</label>
+                                    <span id="info-codigo" class="info-value highlight">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <label>Antigüedad:</label>
+                                    <span id="info-antiguedad" class="info-value">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- OTM Scanner Section (replaces old maintenance form) -->
+                        <div class="info-card glass">
+                            <h3 class="section-title">📋 Informe de Mantenimiento</h3>
+                            <div class="otm-scanner-container">
+                                <p class="otm-description">Escanea la Orden de Trabajo de Mantenimiento (OTM) para
+                                    guardarla</p>
+                                <button id="scan-otm-btn" class="btn-primary glow large">
+                                    📷 Escanear OTM
+                                </button>
+                                <!-- Lista de OTMs escaneados para este equipo -->
+                                <div id="equipment-otm-list" class="otm-list"></div>
+                            </div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button id="save-maintenance-btn" class="btn-primary glow large" style="display: none;">
+                                💾 Guardar OTM
+                            </button>
+                            <button id="new-scan-btn" class="btn-secondary">
+                                📷 Nuevo Escaneo
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Admin View -->
+                <section id="admin-view" class="view">
+                    <div class="admin-container">
+                        <div class="admin-grid">
+                            <button class="admin-card glass" data-admin="add-equipment">
+                                <span class="admin-icon">➕</span>
+                                <span class="admin-title">Agregar Equipo</span>
+                                <span class="admin-desc">Registrar nuevo equipo</span>
+                            </button>
+                            <button class="admin-card glass" data-admin="view-all">
+                                <span class="admin-icon">📋</span>
+                                <span class="admin-title">Ver Equipos</span>
+                                <span class="admin-desc">Lista completa</span>
+                            </button>
+                            <button class="admin-card glass" data-admin="reports">
+                                <span class="admin-icon">📊</span>
+                                <span class="admin-title">Reportes</span>
+                                <span class="admin-desc">Estadísticas</span>
+                            </button>
+                            <button class="admin-card glass" data-admin="users">
+                                <span class="admin-icon">👥</span>
+                                <span class="admin-title">Usuarios</span>
+                                <span class="admin-desc">Gestión de acceso</span>
+                            </button>
+                            <button class="admin-card glass" data-admin="maintenance-history">
+                                <span class="admin-icon">🔧</span>
+                                <span class="admin-title">Historial</span>
+                                <span class="admin-desc">Mantenimientos</span>
+                            </button>
+                            <button class="admin-card glass" data-admin="settings">
+                                <span class="admin-icon">⚙️</span>
+                                <span class="admin-title">Configuración</span>
+                                <span class="admin-desc">Ajustes del sistema</span>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Equipment List View (Admin) -->
+                <section id="equipment-list-view" class="view">
+                    <div class="list-header">
+                        <input type="text" id="search-equipment" class="search-input"
+                            placeholder="🔍 Buscar por código, nombre o ubicación...">
+                    </div>
+                    <div id="equipment-list" class="equipment-list">
+                        <div class="loading-spinner">Cargando equipos...</div>
+                    </div>
+                </section>
+
+                <!-- Verify Equipment View -->
+                <section id="verify-view" class="view">
+                    <div class="verify-container">
+                        <div class="verify-input-group glass">
+                            <label>Ingrese el Código Patrimonial (12 dígitos):</label>
+                            <input type="text" id="verify-code" class="input-futuristic large"
+                                placeholder="Ej: 532250000014" inputmode="numeric" maxlength="12">
+                            <button id="verify-btn" class="btn-primary glow">
+                                🔍 Verificar Equipo
+                            </button>
+                        </div>
+                        <!-- OTM History will appear here after verification -->
+                        <div id="otm-history-container" class="otm-history-container" style="display: none;">
+                            <h3 class="section-title">📋 Historial de OTM</h3>
+                            <div id="otm-history-list" class="otm-history-list"></div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <!-- Overlay for sidebar -->
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+        <!-- Toast Notifications -->
+        <div id="toast" class="toast"></div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="loading-spinner-large"></div>
+            <p>Procesando...</p>
+        </div>
+
+        <!-- OTM Image Viewer Modal -->
+        <div id="otm-viewer-modal" class="otm-viewer-modal" onclick="window.app.closeOTMViewer()">
+            <div class="otm-viewer-header" onclick="event.stopPropagation()">
+                <span>📄 Documento OTM</span>
+                <div class="otm-header-buttons">
+                    <button class="otm-share-btn" onclick="window.app.shareOTM()">📤</button>
+                    <button class="otm-download-btn" onclick="window.app.downloadOTMasPDF()">📥 PDF</button>
+                    <button class="otm-close-btn" onclick="window.app.closeOTMViewer()">✕</button>
+                </div>
+            </div>
+            <div class="otm-viewer-content" id="otm-zoom-container" onclick="event.stopPropagation()">
+                <img id="otm-viewer-image" src="" alt="OTM Document" style="transform-origin: center center;">
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/sheets.js"></script>
+    <script src="js/scanner.js"></script>
+    <script src="js/otm-storage.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
