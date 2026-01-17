@@ -43,6 +43,7 @@ class OTMStorage {
 
     // Save a new OTM report
     async saveOTMReport(equipmentCode, imageBlob, technicianName = '') {
+        console.log('💾 Saving OTM for equipment:', equipmentCode);
         if (!this.db) await this.init();
 
         const now = new Date();

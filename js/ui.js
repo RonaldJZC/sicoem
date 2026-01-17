@@ -5,6 +5,7 @@ class UI {
         this.currentView = 'scanner';
         this.currentEquipment = null;
         this.sidebarOpen = false;
+        this.navigationHistory = ['scanner']; // Track navigation history for back button
     }
 
     init() {
@@ -147,7 +148,7 @@ class UI {
     }
 
     // Show view
-    showView(viewName) {
+    showView(viewName, addToHistory = true) {
         document.querySelectorAll('.view').forEach(view => {
             view.classList.remove('active');
         });
@@ -155,8 +156,62 @@ class UI {
         const targetView = document.getElementById(`${viewName}-view`);
         if (targetView) {
             targetView.classList.add('active');
+
+            // Add to navigation history (avoid duplicates at top)
+            if (addToHistory && this.navigationHistory[this.navigationHistory.length - 1] !== viewName) {
+                this.navigationHistory.push(viewName);
+                // Keep history reasonable size
+                if (this.navigationHistory.length > 20) {
+                    this.navigationHistory.shift();
+                }
+            }
+
             this.currentView = viewName;
         }
+    }
+
+    // Go back to previous view (for Android back button)
+    goBack() {
+        // Close sidebar if open
+        if (this.sidebarOpen) {
+            this.closeSidebar();
+            return true;
+        }
+
+        // Close OTM viewer if open
+        const otmModal = document.getElementById('otm-viewer-modal');
+        if (otmModal && otmModal.classList.contains('active')) {
+            if (window.app) window.app.closeOTMViewer();
+            return true;
+        }
+
+        // Close PDF modal if open
+        const pdfModal = document.getElementById('dynamic-pdf-modal');
+        if (pdfModal) {
+            if (window.app) window.app.closePDFModal();
+            return true;
+        }
+
+        // Navigate to previous view in history
+        if (this.navigationHistory.length > 1) {
+            this.navigationHistory.pop();
+            const previousView = this.navigationHistory[this.navigationHistory.length - 1];
+            this.showView(previousView, false);
+
+            // Update page title based on view
+            const titles = {
+                'scanner': 'Información de Equipo',
+                'equipment': 'Información del Equipo',
+                'admin': 'Panel de Administrador',
+                'verify': 'Verificar Equipo',
+                'equipment-list': 'Lista de Equipos'
+            };
+            document.getElementById('page-title').textContent = titles[previousView] || 'SICOEM';
+
+            return true;
+        }
+
+        return false;
     }
 
     // Show equipment info

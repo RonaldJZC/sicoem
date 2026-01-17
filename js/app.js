@@ -40,7 +40,33 @@ class App {
             this.updateLoadingStatus('⚠️ Error al cargar datos', false);
         });
 
+        // Setup Android back button handler
+        this.setupBackButtonHandler();
+
         console.log('✅ SICOEM initialized');
+    }
+
+    // Setup Android hardware back button handler
+    setupBackButtonHandler() {
+        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+            try {
+                const { App } = Capacitor.Plugins;
+
+                App.addListener('backButton', () => {
+                    // Try to handle back navigation within the app
+                    if (window.ui && window.ui.goBack()) {
+                        return;
+                    }
+
+                    // If on main screen with no history, exit
+                    App.exitApp();
+                });
+
+                console.log('✅ Android back button handler registered');
+            } catch (error) {
+                console.error('Error setting up back button:', error);
+            }
+        }
     }
 
     // Update loading status indicator
@@ -233,6 +259,9 @@ class App {
                     // Save to OTM storage
                     await window.otmStorage.saveOTMReport(equipmentCode, enhancedBlob, technicianName);
 
+                    // Upload to Google Drive (async, don't wait)
+                    this.uploadOTMToDrive(equipmentCode, enhancedBlob, technicianName);
+
                     window.ui.hideLoading();
                     window.ui.showToast('✅ OTM escaneado correctamente', 'success');
                     this.loadEquipmentOTMList(equipmentCode);
@@ -263,6 +292,10 @@ class App {
             try {
                 const imageBlob = await this.processDocumentImage(file);
                 await window.otmStorage.saveOTMReport(equipmentCode, imageBlob, technicianName);
+
+                // Upload to Google Drive (async, don't wait)
+                this.uploadOTMToDrive(equipmentCode, imageBlob, technicianName);
+
                 window.ui.hideLoading();
                 window.ui.showToast('✅ OTM guardado correctamente', 'success');
                 this.loadEquipmentOTMList(equipmentCode);
@@ -369,32 +402,254 @@ class App {
         ctx.putImageData(imageData, 0, 0);
     }
 
-    // Load OTM list for current equipment
+    // Upload OTM to Google Drive (async background upload)
+    async uploadOTMToDrive(equipmentCode, imageBlob, technicianName) {
+        if (!window.driveStorage || !CONFIG.DRIVE_SCRIPT_URL) {
+            console.log('Drive storage not configured');
+            return;
+        }
+
+        try {
+            const pdfBlob = await this.createPDFFromImage(imageBlob);
+            const today = new Date();
+            const dateStr = today.toLocaleDateString('es-PE');
+
+            const result = await window.driveStorage.uploadOTM(
+                equipmentCode,
+                pdfBlob,
+                technicianName || this.currentUser?.name || 'Técnico',
+                dateStr
+            );
+
+            if (result.success && !result.queued) {
+                window.ui.showToast('☁️ Sincronizado con Drive', 'success');
+            }
+        } catch (error) {
+            console.error('Drive upload error:', error);
+        }
+    }
+
+    // Load OTM list for current equipment (from local + Drive)
     async loadEquipmentOTMList(equipmentCode) {
         const listEl = document.getElementById('equipment-otm-list');
         if (!listEl) return;
 
-        try {
-            const reports = await window.otmStorage.getReportsByCode(equipmentCode);
+        listEl.innerHTML = '<div class="otm-loading">Cargando OTMs...</div>';
 
-            if (reports.length === 0) {
+        try {
+            // Try to get from local storage first
+            let localReports = [];
+            try {
+                localReports = await window.otmStorage.getReportsByCode(equipmentCode);
+            } catch (e) {
+                console.warn('Error loading local reports:', e);
+            }
+
+            // Also try to get from Google Drive
+            let driveReports = [];
+            if (window.driveStorage && CONFIG.DRIVE_SCRIPT_URL) {
+                try {
+                    const driveResult = await window.driveStorage.getOTMHistory(equipmentCode);
+                    if (driveResult && driveResult.otms) {
+                        driveReports = driveResult.otms;
+                    }
+                } catch (e) {
+                    console.warn('Error loading Drive reports:', e);
+                }
+            }
+
+            // Combine: show local first, then Drive (for items not in local)
+            const allReports = [...localReports];
+
+            // Add Drive reports that aren't in local (based on filename/date match)
+            driveReports.forEach(driveReport => {
+                // Check if this report is already in local
+                const alreadyLocal = localReports.some(local =>
+                    local.dateFormatted === driveReport.date
+                );
+                if (!alreadyLocal) {
+                    allReports.push({
+                        id: null, // No local ID
+                        fileId: driveReport.fileId,
+                        fileName: driveReport.fileName,
+                        dateFormatted: driveReport.date,
+                        timeFormatted: '',
+                        isFromDrive: true
+                    });
+                }
+            });
+
+            if (allReports.length === 0) {
                 listEl.innerHTML = '<div class="otm-empty">No hay OTMs registrados para este equipo</div>';
                 return;
             }
 
-            listEl.innerHTML = reports.map(report => `
-                <div class="otm-item" onclick="window.app.openOTMReport(${report.id})">
-                    <div class="otm-item-info">
-                        <span class="otm-item-date">${report.dateFormatted}</span>
-                        <span class="otm-item-time">${report.timeFormatted}</span>
-                    </div>
-                    <span class="otm-item-icon">📄</span>
-                </div>
-            `).join('');
+            listEl.innerHTML = allReports.map(report => {
+                if (report.isFromDrive) {
+                    return `
+                        <div class="otm-item otm-from-drive" onclick="window.app.openDriveOTM('${report.fileId}')">
+                            <div class="otm-item-info">
+                                <span class="otm-item-date">${report.dateFormatted}</span>
+                                <span class="otm-item-source">☁️ Drive</span>
+                            </div>
+                            <span class="otm-item-icon">📄</span>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="otm-item" onclick="window.app.openOTMReport(${report.id})">
+                            <div class="otm-item-info">
+                                <span class="otm-item-date">${report.dateFormatted}</span>
+                                <span class="otm-item-time">${report.timeFormatted}</span>
+                            </div>
+                            <span class="otm-item-icon">📄</span>
+                        </div>
+                    `;
+                }
+            }).join('');
 
         } catch (error) {
             console.error('Error loading OTM list:', error);
             listEl.innerHTML = '<div class="otm-empty">Error al cargar OTMs</div>';
+        }
+    }
+
+    // Open OTM from Google Drive (download and open with native viewer)
+    async openDriveOTM(fileId) {
+        window.ui.showLoading();
+        window.ui.showToast('Descargando documento...', 'success');
+
+        try {
+            // Download file content as base64
+            const fileData = await window.driveStorage.getFileContent(fileId);
+
+            if (!fileData || !fileData.content) {
+                window.ui.showToast('No se pudo descargar el documento', 'error');
+                window.ui.hideLoading();
+                return;
+            }
+
+            // Try to use Capacitor Filesystem to save and open with FileOpener
+            if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+                try {
+                    const { Filesystem } = Capacitor.Plugins;
+                    const FileOpener = Capacitor.Plugins.FileOpener;
+
+                    // Save file to cache directory
+                    const fileName = fileData.fileName || 'documento.pdf';
+                    const result = await Filesystem.writeFile({
+                        path: fileName,
+                        data: fileData.content,
+                        directory: 'CACHE'
+                    });
+
+                    // Get the file URI
+                    const fileUri = result.uri;
+
+                    // Open with native PDF viewer using FileOpener plugin
+                    await FileOpener.open({
+                        filePath: fileUri,
+                        contentType: 'application/pdf'
+                    });
+
+                    window.ui.showToast('✅ Documento abierto', 'success');
+                    window.ui.hideLoading();
+                    return;
+                } catch (nativeError) {
+                    console.warn('Native open failed, trying fallback:', nativeError);
+                    window.ui.showToast('Instalando visor de PDF...', 'info');
+                }
+            }
+
+            // Fallback: Create download link
+            const byteCharacters = atob(fileData.content);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: fileData.mimeType });
+
+            // Trigger download
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = fileData.fileName || 'documento.pdf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+
+            window.ui.showToast('✅ Documento descargado', 'success');
+
+        } catch (error) {
+            console.error('Error opening Drive OTM:', error);
+            window.ui.showToast('Error al descargar documento', 'error');
+        }
+        window.ui.hideLoading();
+    }
+
+    // Show PDF in dynamic modal (using local blob URL)
+    showLocalPDFModal(blobUrl, fileName) {
+        // Remove existing modal if any
+        const existing = document.getElementById('dynamic-pdf-modal');
+        if (existing) existing.remove();
+
+        // Store URL for cleanup
+        this.currentPDFUrl = blobUrl;
+
+        const modal = document.createElement('div');
+        modal.id = 'dynamic-pdf-modal';
+        modal.className = 'otm-viewer-modal active';
+        modal.innerHTML = `
+            <div class="otm-viewer-header">
+                <button class="otm-close-btn" onclick="window.app.closePDFModal()">✕</button>
+                <span class="otm-viewer-title">${fileName || 'Documento OTM'}</span>
+            </div>
+            <div class="pdf-viewer-container">
+                <object data="${blobUrl}" type="application/pdf" class="pdf-viewer-object">
+                    <div class="pdf-fallback">
+                        <p>No se puede mostrar el PDF directamente.</p>
+                        <a href="${blobUrl}" download="${fileName}" class="btn-primary">📥 Descargar PDF</a>
+                    </div>
+                </object>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // Show PDF in dynamic modal (for iframe embed - unused now)
+    showPDFModal(embedUrl) {
+        // Remove existing modal if any
+        const existing = document.getElementById('dynamic-pdf-modal');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'dynamic-pdf-modal';
+        modal.className = 'otm-viewer-modal active';
+        modal.innerHTML = `
+            <div class="otm-viewer-header">
+                <button class="otm-close-btn" onclick="window.app.closePDFModal()">✕</button>
+                <span class="otm-viewer-title">Documento OTM</span>
+            </div>
+            <div class="pdf-viewer-container">
+                <iframe src="${embedUrl}" class="pdf-viewer-iframe" frameborder="0" allowfullscreen></iframe>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // Close PDF modal
+    closePDFModal() {
+        const modal = document.getElementById('dynamic-pdf-modal');
+        if (modal) {
+            modal.remove();
+        }
+
+        // Revoke blob URL to free memory
+        if (this.currentPDFUrl) {
+            URL.revokeObjectURL(this.currentPDFUrl);
+            this.currentPDFUrl = null;
         }
     }
 
@@ -806,7 +1061,7 @@ class App {
         console.log('QR Scanned:', code);
         this.scannerActive = false;
 
-        // Show result
+        // Show result briefly
         document.getElementById('scan-result').style.display = 'block';
         document.getElementById('scanned-code').textContent = code;
 
@@ -814,6 +1069,11 @@ class App {
         if (navigator.vibrate) {
             navigator.vibrate(100);
         }
+
+        // Auto-navigate to equipment view after brief delay
+        setTimeout(() => {
+            this.findEquipmentByCode(code);
+        }, 800);
     }
 
     // Find equipment by code

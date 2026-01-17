@@ -1,5 +1,23 @@
 {
   "appId": "com.diris.sicoem",
   "appName": "SICOEM",
-  "webDir": "www"
+  "webDir": "www",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  },
+  "server": {
+    "allowNavigation": [
+      "script.google.com",
+      "*.google.com",
+      "*.googleapis.com"
+    ],
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "webContentsDebuggingEnabled": true,
+    "useLegacyBridge": false
+  }
 }

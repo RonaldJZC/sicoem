@@ -12,6 +12,10 @@ const CONFIG = {
     // Dejar vacío por ahora, se configurará después
     APPS_SCRIPT_URL: '',
 
+    // Google Apps Script URL for Drive Storage (OTM uploads)
+    // Deploy your OTM_DriveAPI.gs and paste URL here
+    DRIVE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxwhyWMhIDt1EH91heXTyGmyMkaaTh-78l50ynKuG-_G4_YWBBqX62i79mKpHmXBySV/exec',
+
     // App Info
     APP_NAME: 'SICOEM',
     APP_VERSION: '2.0.0',
