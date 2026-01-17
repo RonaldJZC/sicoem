@@ -1537,3 +1537,138 @@ body.scanner-active .qr-reader {
     padding: 1rem 2rem;
     text-decoration: none;
 }
+
+/* ===== Equipment List Filters ===== */
+.filter-container {
+    padding: 1rem;
+    margin: 0.5rem;
+    border-radius: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    position: relative;
+}
+
+.filter-label {
+    font-size: 0.9rem;
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.filter-input {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.75rem;
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.filter-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.filter-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+}
+
+.suggestions-dropdown.active {
+    display: block;
+}
+
+.suggestion-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.2s ease;
+}
+
+.suggestion-item:hover {
+    background: rgba(0, 200, 255, 0.1);
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.equipment-results {
+    padding: 0.5rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.filter-instructions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.filter-instructions p {
+    font-size: 1.1rem;
+}
+
+.result-count {
+    padding: 0.5rem 1rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.equipment-result-item {
+    padding: 1rem;
+    margin: 0.5rem 0;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.equipment-result-item:hover {
+    background: rgba(0, 200, 255, 0.1);
+    border-color: var(--primary);
+}
+
+.equipment-result-item h4 {
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.equipment-result-item p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.equipment-result-item .equipment-code {
+    color: var(--primary);
+    font-family: monospace;
+}

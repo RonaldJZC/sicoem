@@ -276,36 +276,136 @@ class UI {
         document.getElementById('observaciones').value = '';
     }
 
-    // Load equipment list
-    async loadEquipmentList() {
-        const listContainer = document.getElementById('equipment-list');
-        listContainer.innerHTML = '<div class="loading-spinner">Cargando equipos...</div>';
+    // Initialize equipment list filters
+    initEquipmentFilters() {
+        this.selectedEstablecimiento = null;
+        this.establecimientos = [];
 
-        const equipment = await window.sheetsDB.fetchEquipment();
-        this.renderEquipmentList(equipment);
+        const establInput = document.getElementById('filter-establecimiento');
+        const equipoInput = document.getElementById('filter-equipo');
+        const searchBtn = document.getElementById('search-equipment-btn');
+        const suggestionsDiv = document.getElementById('establecimiento-suggestions');
+
+        if (!establInput) return;
+
+        // Get unique establishments from equipment data
+        this.establecimientos = [...new Set(window.sheetsDB.equipment.map(eq => eq.establecimiento))].filter(Boolean).sort();
+
+        // Establishment input - show suggestions
+        establInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            this.selectedEstablecimiento = null;
+            equipoInput.disabled = true;
+            searchBtn.disabled = true;
+
+            if (query.length < 2) {
+                suggestionsDiv.classList.remove('active');
+                return;
+            }
+
+            const matches = this.establecimientos.filter(est =>
+                est.toLowerCase().includes(query)
+            ).slice(0, 10);
+
+            if (matches.length > 0) {
+                suggestionsDiv.innerHTML = matches.map(est =>
+                    `<div class="suggestion-item">${est}</div>`
+                ).join('');
+                suggestionsDiv.classList.add('active');
+
+                // Add click handlers to suggestions
+                suggestionsDiv.querySelectorAll('.suggestion-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        establInput.value = item.textContent;
+                        this.selectedEstablecimiento = item.textContent;
+                        suggestionsDiv.classList.remove('active');
+                        equipoInput.disabled = false;
+                        equipoInput.focus();
+                    });
+                });
+            } else {
+                suggestionsDiv.classList.remove('active');
+            }
+        });
+
+        // Close suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.filter-group')) {
+                suggestionsDiv.classList.remove('active');
+            }
+        });
+
+        // Equipment input - enable search button
+        equipoInput.addEventListener('input', (e) => {
+            searchBtn.disabled = !this.selectedEstablecimiento;
+        });
+
+        // Search button click
+        searchBtn.addEventListener('click', () => {
+            this.searchEquipment();
+        });
+
+        // Enter key on equipment input
+        equipoInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && this.selectedEstablecimiento) {
+                this.searchEquipment();
+            }
+        });
     }
 
-    // Render equipment list
-    renderEquipmentList(equipment) {
-        const listContainer = document.getElementById('equipment-list');
+    // Search equipment with filters
+    searchEquipment() {
+        const equipoQuery = document.getElementById('filter-equipo').value.toLowerCase();
+        const resultsDiv = document.getElementById('equipment-results');
 
-        if (!equipment || equipment.length === 0) {
-            listContainer.innerHTML = '<div class="loading-spinner">No se encontraron equipos</div>';
+        if (!this.selectedEstablecimiento) {
+            window.ui.showToast('Seleccione un establecimiento primero', 'error');
             return;
         }
 
-        listContainer.innerHTML = equipment.map(eq => `
-            <div class="equipment-item" data-id="${eq.id}">
-                <div class="equipment-icon">🏥</div>
-                <div class="equipment-info">
-                    <h4>${eq.nombre}</h4>
-                    <p>${eq.establecimiento} • ${eq.codigo}</p>
+        resultsDiv.innerHTML = '<div class="loading-spinner">Buscando equipos...</div>';
+
+        // Filter by establishment first
+        let results = window.sheetsDB.equipment.filter(eq =>
+            eq.establecimiento === this.selectedEstablecimiento
+        );
+
+        // Then filter by equipment name if provided
+        if (equipoQuery) {
+            results = results.filter(eq =>
+                eq.nombre?.toLowerCase().includes(equipoQuery)
+            );
+        }
+
+        this.renderFilteredEquipment(results);
+    }
+
+    // Render filtered equipment results
+    renderFilteredEquipment(equipment) {
+        const resultsDiv = document.getElementById('equipment-results');
+
+        if (!equipment || equipment.length === 0) {
+            resultsDiv.innerHTML = `
+                <div class="filter-instructions">
+                    <p>❌ No se encontraron equipos con estos criterios</p>
                 </div>
-            </div>
-        `).join('');
+            `;
+            return;
+        }
+
+        resultsDiv.innerHTML = `
+            <div class="result-count">📊 ${equipment.length} equipo(s) encontrado(s)</div>
+            ${equipment.map(eq => `
+                <div class="equipment-result-item" data-id="${eq.id}">
+                    <h4>🔧 ${eq.nombre || 'Sin nombre'}</h4>
+                    <p><span class="equipment-code">${eq.codigo}</span> • ${eq.marca || ''} ${eq.modelo || ''}</p>
+                    <p>📍 ${eq.ambiente || 'Sin ambiente'}</p>
+                </div>
+            `).join('')}
+        `;
 
         // Add click handlers
-        listContainer.querySelectorAll('.equipment-item').forEach(item => {
+        resultsDiv.querySelectorAll('.equipment-result-item').forEach(item => {
             item.addEventListener('click', () => {
                 const equipment = window.sheetsDB.findById(item.dataset.id);
                 if (equipment) {
@@ -315,14 +415,14 @@ class UI {
         });
     }
 
-    // Filter equipment list
-    filterEquipmentList(query) {
-        if (!query) {
-            this.loadEquipmentList();
-            return;
+    // Legacy: Load equipment list (now uses filters)
+    async loadEquipmentList() {
+        // Wait for data to be ready
+        if (window.sheetsDB.equipment.length === 0) {
+            await window.sheetsDB.fetchEquipment();
         }
-        const results = window.sheetsDB.search(query);
-        this.renderEquipmentList(results);
+        // Initialize filters
+        this.initEquipmentFilters();
     }
 
     // Show maintenance history

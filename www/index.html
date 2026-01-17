@@ -275,12 +275,29 @@
 
                 <!-- Equipment List View (Admin) -->
                 <section id="equipment-list-view" class="view">
-                    <div class="list-header">
-                        <input type="text" id="search-equipment" class="search-input"
-                            placeholder="🔍 Buscar por código, nombre o ubicación...">
+                    <div class="filter-container glass">
+                        <div class="filter-group">
+                            <label class="filter-label">🏥 Establecimiento de Salud</label>
+                            <input type="text" id="filter-establecimiento" class="filter-input"
+                                placeholder="Escriba el nombre del establecimiento..." autocomplete="off">
+                            <div id="establecimiento-suggestions" class="suggestions-dropdown"></div>
+                        </div>
+
+                        <div class="filter-group">
+                            <label class="filter-label">🔧 Nombre del Equipo</label>
+                            <input type="text" id="filter-equipo" class="filter-input"
+                                placeholder="Escriba el nombre del equipo..." disabled>
+                        </div>
+
+                        <button id="search-equipment-btn" class="btn-primary" disabled>
+                            🔍 Buscar Equipos
+                        </button>
                     </div>
-                    <div id="equipment-list" class="equipment-list">
-                        <div class="loading-spinner">Cargando equipos...</div>
+
+                    <div id="equipment-results" class="equipment-results">
+                        <div class="filter-instructions">
+                            <p>👆 Seleccione un establecimiento para comenzar la búsqueda</p>
+                        </div>
                     </div>
                 </section>
 
